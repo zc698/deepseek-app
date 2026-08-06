@@ -1,0 +1,39 @@
+[package]
+name = "deepseek-app"
+version = "0.1.0"
+description = "DeepSeek Desktop App - Tauri shell + DeepSeek official API + skills system"
+edition = "2021"
+rust-version = "1.77"
+
+[lib]
+name = "deepseek_app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls", "gzip"] }
+tokio = { version = "1", features = ["full"] }
+futures-util = "0.3"
+include_dir = "0.7"
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+dirs = "6"
+anyhow = "1"
+thiserror = "2"
+bytes = "1"
+
+[dev-dependencies]
+axum = "0.8"
+tempfile = "3"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true
