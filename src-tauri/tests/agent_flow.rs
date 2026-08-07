@@ -316,3 +316,55 @@ async fn stop_flag_interrupts_agent() {
     assert!(events.iter().any(|e| matches!(e, AgentEvent::Done { .. })));
     assert!(output.content.is_empty());
 }
+
+async fn error_handler() -> Response {
+    (
+        StatusCode::UNAUTHORIZED,
+        Json(json!({ "error": { "message": "Invalid API key" } })),
+    )
+        .into_response()
+}
+
+async fn spawn_error_mock() -> String {
+    let app = Router::new()
+        .route("/chat/completions", post(error_handler))
+        .route("/models", axum::routing::get(models_handler));
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+    format!("http://{}", addr)
+}
+
+/// Any agent failure (here: 401 from the API) must surface as **exactly one**
+/// AgentEvent::Error and an Err result — the frontend relies on that to clear
+/// its busy state and mark the message as failed.
+#[tokio::test]
+async fn agent_error_emits_single_error_event() {
+    let ws = tempfile::tempdir().unwrap();
+    let data = tempfile::tempdir().unwrap();
+    let base = spawn_error_mock().await;
+    let client = DeepSeekClient::new(&base, "bad-key");
+    let cfg = test_cfg(ws.path(), data.path());
+
+    let (tx, rx) = mpsc::unbounded_channel();
+    let stop = Arc::new(AtomicBool::new(false));
+    let result =
+        deepseek_app_lib::agent::run_agent(&client, &cfg, Vec::new(), "hi", &tx, stop).await;
+    assert!(result.is_err(), "agent should fail with 401");
+
+    // Collect events with a small timeout; there is no Done, only Error.
+    let mut errors = 0;
+    let mut done = 0;
+    let mut rx = rx;
+    while let Ok(Some(ev)) = tokio::time::timeout(std::time::Duration::from_millis(500), rx.recv()).await {
+        match ev {
+            AgentEvent::Error { .. } => errors += 1,
+            AgentEvent::Done { .. } => done += 1,
+            _ => {}
+        }
+    }
+    assert_eq!(errors, 1, "exactly one error event must be emitted");
+    assert_eq!(done, 0, "no done event on failure");
+}

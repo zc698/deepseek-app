@@ -24,6 +24,7 @@ include_dir = "0.7"
 uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 dirs = "6"
+keyring = { version = "3", features = ["apple-native"] }
 anyhow = "1"
 thiserror = "2"
 bytes = "1"

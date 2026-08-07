@@ -2,6 +2,7 @@ pub mod agent;
 mod commands;
 pub mod deepseek;
 mod error;
+mod secrets;
 pub mod sessions;
 pub mod settings;
 pub mod skills;

@@ -120,7 +120,26 @@ fn conversation_only(messages: &[Value]) -> Vec<Value> {
 }
 
 /// Run the agent for one user message: skill selection -> streaming loop -> tool execution.
+///
+/// On failure this emits **exactly one** `AgentEvent::Error` and returns `Err`,
+/// regardless of which step failed (skill selection, API call, stream decode...).
 pub async fn run_agent(
+    client: &DeepSeekClient,
+    cfg: &AgentConfig,
+    history: Vec<Value>,
+    user_text: &str,
+    event_tx: &UnboundedSender<AgentEvent>,
+    stop: Arc<AtomicBool>,
+) -> AppResult<AgentOutput> {
+    let result =
+        run_agent_inner(client, cfg, history, user_text, event_tx, stop).await;
+    if let Err(e) = &result {
+        emit(event_tx, AgentEvent::Error { message: e.to_string() });
+    }
+    result
+}
+
+async fn run_agent_inner(
     client: &DeepSeekClient,
     cfg: &AgentConfig,
     history: Vec<Value>,
@@ -242,7 +261,8 @@ pub async fn run_agent(
         }
 
         if let Some(e) = round_error {
-            emit(event_tx, AgentEvent::Error { message: e.to_string() });
+            // Error emission is centralized in run_agent() to guarantee exactly
+            // one Error event per failed turn.
             return Err(e);
         }
         if stopped {

@@ -62,7 +62,11 @@ fn skill_roots(data_dir: &std::path::Path) -> Vec<PathBuf> {
 
 #[tauri::command]
 pub fn settings_get(state: State<'_, AppState>) -> Settings {
-    state.settings.read().unwrap().clone()
+    // Resolve the key from keychain (or env) so the settings UI can show it.
+    let settings = state.settings.read().unwrap().clone();
+    let mut resolved = settings.clone();
+    resolved.api_key = settings.effective_api_key();
+    resolved
 }
 
 #[tauri::command]
@@ -76,8 +80,16 @@ pub fn settings_set(state: State<'_, AppState>, settings: Settings) -> AppResult
     if !(0.0..=2.0).contains(&settings.temperature) {
         return Err(AppError::Config("temperature 必须在 0~2 之间".into()));
     }
+    // Persist the API key to the OS keychain; keep the file as a fallback only
+    // when the keychain is unavailable. An empty key clears the stored secret.
+    let mut to_save = settings.clone();
+    if settings.api_key.trim().is_empty() {
+        crate::secrets::delete("api_key");
+    } else if crate::secrets::set("api_key", settings.api_key.trim()) {
+        to_save.api_key = String::new();
+    }
     let store = SettingsStore::new(&state.data_dir);
-    store.save(&settings)?;
+    store.save(&to_save)?;
     *state.settings.write().unwrap() = settings.clone();
     Ok(settings)
 }
@@ -197,7 +209,7 @@ pub async fn chat_send(
         });
 
         // Run the agent.
-        let client = DeepSeekClient::new(&settings.base_url, &settings.api_key);
+        let client = DeepSeekClient::new(&settings.base_url, &settings.effective_api_key());
         let cfg = AgentConfig {
             model: settings.model.clone(),
             temperature: settings.temperature,

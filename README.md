@@ -118,7 +118,7 @@ npm run tauri build
 
 ## DeepSeek API Key
 
-在应用的**设置**面板中填入 `platform.deepseek.com` 申请的 API Key（仅保存到本地 `settings.json`，权限 0600）。也可以在 `settings.json` 中直接编辑，或者用环境变量 `DEEPSEEK_API_KEY` 覆盖。
+在应用的**设置**面板中填入 `platform.deepseek.com` 申请的 API Key。密钥优先存入 **macOS 钥匙串（Keychain）**；若钥匙串不可用则回退保存到本地 `settings.json`（权限 0600）。也可用环境变量 `DEEPSEEK_API_KEY` 覆盖（优先级最高）。
 
 > 注意：`deepseek-reasoner` 模型**不支持工具调用**。Agent 会自动检测到 `reasoner` 模型并跳过工具注册，只输出思考 + 回答。
 

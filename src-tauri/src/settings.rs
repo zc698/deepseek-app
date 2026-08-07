@@ -58,6 +58,22 @@ impl Settings {
             std::env::current_dir().unwrap_or_default().join(p)
         }
     }
+
+    /// Resolve the effective API key with the following priority:
+    /// 1. `DEEPSEEK_API_KEY` env var (explicit override)
+    /// 2. OS keychain
+    /// 3. settings.json (legacy storage / fallback when keychain is unavailable)
+    pub fn effective_api_key(&self) -> String {
+        if let Ok(k) = std::env::var("DEEPSEEK_API_KEY") {
+            if !k.trim().is_empty() {
+                return k;
+            }
+        }
+        if let Some(k) = crate::secrets::get("api_key") {
+            return k;
+        }
+        self.api_key.clone()
+    }
 }
 
 pub struct SettingsStore {
@@ -71,11 +87,30 @@ impl SettingsStore {
         }
     }
 
+    /// Load settings, migrating any legacy plaintext key into the OS keychain.
+    /// The keychain write is best-effort: when unavailable (sandboxed tests,
+    /// headless environments) the key stays in settings.json as a fallback.
     pub fn load(&self) -> Settings {
-        match std::fs::read_to_string(&self.path) {
+        let settings = match std::fs::read_to_string(&self.path) {
             Ok(raw) => serde_json::from_str(&raw).unwrap_or_default(),
             Err(_) => Settings::default(),
+        };
+        self.migrate_key(&settings);
+        settings
+    }
+
+    /// Move a plaintext key found in settings.json into the OS keychain.
+    fn migrate_key(&self, settings: &Settings) {
+        if settings.api_key.trim().is_empty() {
+            return;
         }
+        if !crate::secrets::set("api_key", &settings.api_key) {
+            return; // keychain unavailable -> keep file fallback
+        }
+        // Keychain write succeeded: blank the key in the persisted file.
+        let mut next = settings.clone();
+        next.api_key = String::new();
+        let _ = self.save(&next);
     }
 
     pub fn save(&self, settings: &Settings) -> crate::error::AppResult<()> {
@@ -103,13 +138,16 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let store = SettingsStore::new(dir.path());
         let mut s = Settings::default();
-        s.api_key = "sk-test-123".into();
+        // api_key is kept empty here: the key itself is handled by the keychain
+        // (or the migration test below), so this test is keychain-independent.
+        s.api_key = String::new();
         s.model = "deepseek-reasoner".into();
         s.temperature = 0.7;
         store.save(&s).unwrap();
         let loaded = store.load();
         assert_eq!(loaded, s);
-        assert_eq!(loaded.api_key, "sk-test-123");
+        assert_eq!(loaded.model, "deepseek-reasoner");
+        assert_eq!(loaded.temperature, 0.7);
     }
 
     #[test]
@@ -119,5 +157,51 @@ mod tests {
         let s = store.load();
         assert_eq!(s.base_url, DEFAULT_BASE_URL);
         assert_eq!(s.model, DEFAULT_MODEL);
+    }
+
+    #[test]
+    fn effective_key_prefers_env_over_file() {
+        // In the test sandbox the keychain is unavailable, so resolution falls
+        // back to settings.json; the env var override must win regardless.
+        let s = Settings {
+            api_key: "file-key".into(),
+            ..Settings::default()
+        };
+        let prev = std::env::var("DEEPSEEK_API_KEY");
+        std::env::set_var("DEEPSEEK_API_KEY", "env-key");
+        assert_eq!(s.effective_api_key(), "env-key");
+        match prev {
+            Ok(v) => std::env::set_var("DEEPSEEK_API_KEY", v),
+            Err(_) => std::env::remove_var("DEEPSEEK_API_KEY"),
+        }
+    }
+
+    #[test]
+    fn effective_key_falls_back_to_file_without_env() {
+        let prev = std::env::var("DEEPSEEK_API_KEY");
+        std::env::remove_var("DEEPSEEK_API_KEY");
+        let s = Settings {
+            api_key: "file-key".into(),
+            ..Settings::default()
+        };
+        assert_eq!(s.effective_api_key(), "file-key");
+        match prev {
+            Ok(v) => std::env::set_var("DEEPSEEK_API_KEY", v),
+            Err(_) => {}
+        }
+    }
+
+    #[test]
+    fn load_migrates_plaintext_key_when_keychain_unavailable() {
+        // Keychain writes fail in the test sandbox -> the key must stay in the
+        // file so the app keeps working with the legacy fallback.
+        let dir = tempfile::tempdir().unwrap();
+        let store = SettingsStore::new(dir.path());
+        let mut s = Settings::default();
+        s.api_key = "sk-legacy".into();
+        store.save(&s).unwrap();
+
+        let loaded = store.load();
+        assert_eq!(loaded.api_key, "sk-legacy", "keychain unavailable -> file fallback kept");
     }
 }
