@@ -109,6 +109,16 @@ fn runtime_context(cfg: &AgentConfig) -> String {
     format!("Runtime context:\n{}", serde_json::to_string_pretty(&json).unwrap_or_default())
 }
 
+/// Strip system prompts from a message list so the persisted conversation
+/// stays free of prompt-stack content (prevents accumulation across turns).
+fn conversation_only(messages: &[Value]) -> Vec<Value> {
+    messages
+        .iter()
+        .filter(|m| m["role"].as_str() != Some("system"))
+        .cloned()
+        .collect()
+}
+
 /// Run the agent for one user message: skill selection -> streaming loop -> tool execution.
 pub async fn run_agent(
     client: &DeepSeekClient,
@@ -136,7 +146,9 @@ pub async fn run_agent(
     let mut messages: Vec<Value> = Vec::new();
     messages.push(msg_system(&build_system_prompt(cfg, &skill_docs)));
     messages.push(msg_system(&runtime_context(cfg)));
-    messages.extend(history);
+    // Defensive: drop any system prompts that legacy sessions may have persisted
+    // inside api_messages (before this fix), so they never accumulate across turns.
+    messages.extend(history.into_iter().filter(|m| m["role"].as_str() != Some("system")));
     messages.push(msg_user(user_text));
 
     let use_tools = !cfg.model.contains("reasoner"); // deepseek-reasoner has no function calling
@@ -165,7 +177,7 @@ pub async fn run_agent(
                 content: content_all,
                 reasoning: reasoning_all,
                 tools: stored_tools,
-                api_messages: messages,
+                api_messages: conversation_only(&messages),
             });
         }
 
@@ -239,7 +251,7 @@ pub async fn run_agent(
                 content: content_all,
                 reasoning: reasoning_all,
                 tools: stored_tools,
-                api_messages: messages,
+                api_messages: conversation_only(&messages),
             });
         }
 
@@ -268,7 +280,7 @@ pub async fn run_agent(
                     content: content_all,
                     reasoning: reasoning_all,
                     tools: stored_tools,
-                    api_messages: messages,
+                    api_messages: conversation_only(&messages),
                 });
             }
             emit(event_tx, AgentEvent::Done { content: content_all.clone() });
@@ -276,7 +288,7 @@ pub async fn run_agent(
                 content: content_all,
                 reasoning: reasoning_all,
                 tools: stored_tools,
-                api_messages: messages,
+                api_messages: conversation_only(&messages),
             });
         }
 
@@ -323,10 +335,55 @@ pub async fn run_agent(
         content: content_all,
         reasoning: reasoning_all,
         tools: stored_tools,
-        api_messages: messages,
+        api_messages: conversation_only(&messages),
     })
 }
 
 fn emit(tx: &UnboundedSender<AgentEvent>, ev: AgentEvent) {
     let _ = tx.send(ev);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn conversation_only_strips_system_prompts() {
+        let msgs = vec![
+            msg_system("base prompt"),
+            msg_system("runtime context"),
+            msg_user("hello"),
+            msg_assistant("hi"),
+        ];
+        let kept = conversation_only(&msgs);
+        assert_eq!(kept.len(), 2);
+        assert_eq!(kept[0]["role"], "user");
+        assert_eq!(kept[1]["role"], "assistant");
+        assert!(kept.iter().all(|m| m["role"].as_str() != Some("system")));
+    }
+
+    #[test]
+    fn history_system_messages_are_filtered_when_assembling() {
+        // Simulates a legacy session whose api_messages accidentally contain system prompts.
+        let history = vec![
+            msg_system("legacy system"),
+            msg_user("q1"),
+            msg_assistant("a1"),
+        ];
+        let mut messages: Vec<Value> = Vec::new();
+        messages.push(msg_system("fresh system"));
+        messages.extend(history.into_iter().filter(|m| m["role"].as_str() != Some("system")));
+        messages.push(msg_user("q2"));
+
+        assert_eq!(messages.len(), 4);
+        assert_eq!(messages[0]["role"], "system"); // fresh stack only
+        assert_eq!(messages[1]["role"], "user");
+        assert_eq!(messages[2]["role"], "assistant");
+        assert_eq!(messages[3]["role"], "user");
+        // No legacy system prompt leaks in.
+        assert_eq!(
+            messages.iter().filter(|m| m["role"] == "system").count(),
+            1
+        );
+    }
 }

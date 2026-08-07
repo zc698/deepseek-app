@@ -218,9 +218,13 @@ async fn full_agent_loop_with_tools_and_skills() {
         final_content.contains("hello from mock server"),
         "final answer should cite tool output, got: {final_content}"
     );
-    // Wire format conversation persisted: leading system prompts + user + assistant(tools) + tool + assistant
-    assert!(output.api_messages.len() >= 5, "api_messages = {:?}", output.api_messages.len());
-    assert!(output.api_messages.iter().any(|m| m["role"] == "system"));
+    // Wire format conversation persisted: user + assistant(tools) + tool + assistant.
+    // Regression: system prompts must NOT be persisted (they would accumulate across turns).
+    assert!(output.api_messages.len() >= 4, "api_messages = {:?}", output.api_messages.len());
+    assert!(
+        !output.api_messages.iter().any(|m| m["role"] == "system"),
+        "persisted api_messages must not contain system prompts"
+    );
     assert!(output.api_messages.iter().any(|m| m["role"] == "user"));
     assert!(output.api_messages.iter().any(|m| m["role"] == "tool"));
     assert!(output.api_messages.iter().any(|m| m["role"] == "assistant"));
@@ -240,6 +244,18 @@ async fn full_agent_loop_with_tools_and_skills() {
     let (_, content2) = collect_events(rx2).await;
     assert_eq!(output2.tools.len(), 0, "second turn should not re-run tools");
     assert!(content2.unwrap().contains("hello from mock server"));
+    // Regression: the second turn must not accumulate system prompts either.
+    assert!(
+        !output2.api_messages.iter().any(|m| m["role"] == "system"),
+        "continuation api_messages must not contain system prompts"
+    );
+    // System stack is rebuilt fresh each turn: the continuation appends exactly
+    // one user message and one assistant message (no duplicated system prompts).
+    assert_eq!(
+        output2.api_messages.len(),
+        output.api_messages.len() + 2,
+        "continuation should append exactly one user + one assistant message"
+    );
 }
 
 #[tokio::test]
