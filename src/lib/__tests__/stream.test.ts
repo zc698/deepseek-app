@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyEvent } from "../stream";
+import { applyEvent, shouldAcceptEvent } from "../stream";
 import type { ChatMessage, ChatEvent } from "../types";
 
 const base: ChatMessage[] = [];
@@ -66,5 +66,39 @@ describe("applyEvent", () => {
     // before calling applyEvent so the reducer stays a pure, testable function.
     let msgs = applyEvent(base, { kind: "start", sessionId: "other", messageId: "mX" });
     expect(msgs).toHaveLength(1);
+  });
+});
+
+describe("shouldAcceptEvent", () => {
+  it("accepts events for the active session", () => {
+    expect(shouldAcceptEvent("s1", true, { kind: "stream", sessionId: "s1", messageId: "m1", delta: "x", reasoning: false })).toBe(true);
+    expect(shouldAcceptEvent("s1", false, { kind: "done", sessionId: "s1", messageId: "m1", content: "x" })).toBe(true);
+  });
+
+  it("accepts events with no sessionId (defensive)", () => {
+    expect(shouldAcceptEvent(null, true, { kind: "stream", sessionId: "", messageId: "m1", delta: "x", reasoning: false })).toBe(true);
+  });
+
+  it("adopts the start event of a brand-new session while busy", () => {
+    // chat_send(null) was called; the host emits `start` before the invoke
+    // response resolves, so activeSession is still null.
+    expect(shouldAcceptEvent(null, true, { kind: "start", sessionId: "new-s1", messageId: "m1" })).toBe(true);
+  });
+
+  it("drops a start event when not busy", () => {
+    expect(shouldAcceptEvent(null, false, { kind: "start", sessionId: "new-s1", messageId: "m1" })).toBe(false);
+  });
+
+  it("drops a start event when an active session already exists", () => {
+    // While busy in session s1, a stray `start` for another session must not
+    // hijack the view (prevents stale agents from polluting the UI).
+    expect(shouldAcceptEvent("s1", true, { kind: "start", sessionId: "other", messageId: "m1" })).toBe(false);
+  });
+
+  it("drops non-start events for a foreign session (no adoption mid-stream)", () => {
+    // Only the `start` event is adoptable; later stream/tool/done events must
+    // match the adopted session id exactly.
+    expect(shouldAcceptEvent(null, true, { kind: "stream", sessionId: "new-s1", messageId: "m1", delta: "x", reasoning: false })).toBe(false);
+    expect(shouldAcceptEvent("s1", true, { kind: "stream", sessionId: "other", messageId: "m1", delta: "x", reasoning: false })).toBe(false);
   });
 });

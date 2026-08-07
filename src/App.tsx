@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import type { ChatEvent, ChatMessage, SessionMeta, Settings, SkillInfo } from "./lib/types";
 import * as api from "./lib/api";
-import { applyEvent } from "./lib/stream";
+import { applyEvent, shouldAcceptEvent } from "./lib/stream";
 import Sidebar from "./components/Sidebar";
 import ChatView from "./components/ChatView";
 import SettingsModal from "./components/SettingsModal";
@@ -17,12 +17,19 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showSkills, setShowSkills] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusyState] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Keep a ref of the active session so the global event listener can always see it.
+  // Keep refs of the active session and busy flag so the global event listener
+  // (subscribed once, with empty deps) always sees the latest values.
   const activeRef = useRef<string | null>(null);
   activeRef.current = activeId;
+  const busyRef = useRef(false);
+
+  const setBusy = useCallback((v: boolean) => {
+    busyRef.current = v;
+    setBusyState(v);
+  }, []);
 
   const refreshSessions = useCallback(async () => {
     const list = await api.sessionsList();
@@ -51,13 +58,20 @@ export default function App() {
     (async () => {
       unlisten = await listen<ChatEvent>("chat://event", (evt) => {
         const payload = evt.payload;
-        if (payload.sessionId && payload.sessionId !== activeRef.current) return;
+        if (!shouldAcceptEvent(activeRef.current, busyRef.current, payload)) return;
+        // New-session race: the host may emit `start` for a brand-new session
+        // before chat_send's invoke response resolves; adopt the session id so
+        // the rest of the stream is not filtered out.
+        if (payload.kind === "start" && payload.sessionId && payload.sessionId !== activeRef.current) {
+          activeRef.current = payload.sessionId;
+          setActiveId(payload.sessionId);
+        }
         setMessages((prev) => applyEvent(prev, payload));
         if (payload.kind === "done" || payload.kind === "error") setBusy(false);
       });
     })();
     return () => unlisten?.();
-  }, []);
+  }, [setBusy]);
 
   const selectSession = useCallback(async (id: string) => {
     setActiveId(id);
@@ -85,37 +99,38 @@ export default function App() {
 
   const send = useCallback(
     async (text: string) => {
-      if (!text.trim() || busy || !settings) return;
+      if (!text.trim() || busyRef.current || !settings) return;
       setError(null);
       setBusy(true);
       const target = activeRef.current;
+      // Optimistically show the user message BEFORE any stream events, so the
+      // message order is always user-then-assistant even for a brand-new session.
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `local-${Date.now()}`,
+          role: "user",
+          content: text,
+          reasoning: "",
+          tools: [],
+          createdAt: new Date().toISOString(),
+        },
+      ]);
       try {
-        await api.chatSend(target, text);
+        const res = await api.chatSend(target, text);
         if (!target) {
-          // A new session was implicitly created by the host; refresh the list
-          // and attach the event flow to it (messageId arrives via events).
+          // The host created a new session; attach the event flow to it
+          // immediately (closes the race with the incoming `start` event).
+          activeRef.current = res.sessionId;
+          setActiveId(res.sessionId);
           await refreshSessions();
-          const list = await api.sessionsList();
-          if (list.length > 0) setActiveId(list[0].id);
-        } else {
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: `local-${Date.now()}`,
-              role: "user",
-              content: text,
-              reasoning: "",
-              tools: [],
-              createdAt: new Date().toISOString(),
-            },
-          ]);
         }
       } catch (e) {
         setError(String(e));
         setBusy(false);
       }
     },
-    [busy, settings, refreshSessions],
+    [settings, refreshSessions, setBusy],
   );
 
   const stop = useCallback(() => {

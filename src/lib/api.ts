@@ -3,8 +3,11 @@ import type { ChatMessage, SessionMeta, Settings, SkillInfo } from "./types";
 
 // ---- IPC wrappers (typed invoke calls into the Rust host) ----
 
-export function chatSend(sessionId: string | null, text: string): Promise<string> {
-  return invoke<string>("chat_send", { sessionId, text });
+export function chatSend(
+  sessionId: string | null,
+  text: string,
+): Promise<{ sessionId: string; messageId: string }> {
+  return invoke("chat_send", { sessionId, text });
 }
 
 export function chatStop(sessionId: string): Promise<void> {

@@ -58,6 +58,25 @@ export function applyEvent(messages: ChatMessage[], ev: ChatEvent): ChatMessage[
   }
 }
 
+/**
+ * Decide whether a host event for `ev.sessionId` should be applied to the
+ * currently visible session.
+ *
+ * Normal case: only events for the active session are accepted.
+ * New-session race: when the user sends the first message of a brand-new
+ * session, the host emits a `start` event (carrying the new session id) before
+ * the `chat_send` invoke response resolves — at that moment `activeSession` is
+ * still null. We adopt that `start` event so the whole stream isn't dropped.
+ */
+export function shouldAcceptEvent(
+  activeSession: string | null,
+  busy: boolean,
+  ev: ChatEvent,
+): boolean {
+  if (!ev.sessionId || ev.sessionId === activeSession) return true;
+  return ev.kind === "start" && busy && activeSession === null;
+}
+
 function upsertTool(tools: ToolRecord[], incoming: ToolRecord): ToolRecord[] {
   const idx = tools.findIndex((t) => t.id === incoming.id);
   if (idx === -1) return [...tools, incoming];
