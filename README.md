@@ -4,6 +4,9 @@
 
 **面向 DeepSeek 官方 API 的桌面客户端** —— *对话、Agent 工具、技能（Skills）—— 为你的编码工作流而生*
 
+<img width="2388" height="1558" alt="a428137d989bbc96fe7ac4449222877e" src="https://github.com/user-attachments/assets/4f847d48-47db-4bb3-a734-4a2d4c422984" />
+
+
 [English](./README_EN.md) · 中文
 
 > **Note**
