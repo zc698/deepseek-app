@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AlertCircle, Brain, Send, Square, Wrench } from "lucide-react";
+import { AlertCircle, Brain, Folder, Send, Square, Wrench } from "lucide-react";
 import type { ChatMessage } from "../lib/types";
 import { MODEL_CATALOG, migrateModel } from "../lib/models";
 import Markdown from "./Markdown";
@@ -9,6 +9,7 @@ interface Props {
   busy: boolean;
   error: string | null;
   model: string;
+  workspace: string | null;
   onModelChange: (model: string) => void;
   onSend: (text: string) => void;
   onStop: () => void;
@@ -78,7 +79,7 @@ function AssistantBody({ message }: { message: ChatMessage }) {
   );
 }
 
-export default function ChatView({ messages, busy, error, model, onModelChange, onSend, onStop }: Props) {
+export default function ChatView({ messages, busy, error, model, workspace, onModelChange, onSend, onStop }: Props) {
   const [draft, setDraft] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -98,8 +99,19 @@ export default function ChatView({ messages, busy, error, model, onModelChange, 
   return (
     <div className="flex h-full flex-col">
       <header className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
-        <h1 className="text-sm font-semibold text-slate-700">对话</h1>
-        <label className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <h1 className="shrink-0 text-sm font-semibold text-slate-700">对话</h1>
+          {workspace && (
+            <span
+              className="flex min-w-0 items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-500"
+              title="Agent 当前工作目录"
+            >
+              <Folder size={12} className="shrink-0 opacity-60" />
+              <span className="max-w-40 truncate">{workspace}</span>
+            </span>
+          )}
+        </div>
+        <label className="flex shrink-0 items-center gap-2">
           <span className="text-[11px] text-slate-400">模型</span>
           <select
             value={migrateModel(model)}

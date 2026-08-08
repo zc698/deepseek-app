@@ -46,6 +46,17 @@ export interface SkillInfo {
   enabled: boolean;
 }
 
+export interface Workspace {
+  id: string;
+  name: string;
+  path: string;
+}
+
+export interface WorkspaceState {
+  current: string | null;
+  items: Workspace[];
+}
+
 export type ChatEvent =
   | { kind: "start"; sessionId: string; messageId: string }
   | { kind: "stream"; sessionId: string; messageId: string; delta: string; reasoning: boolean }

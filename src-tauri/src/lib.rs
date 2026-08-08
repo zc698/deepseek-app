@@ -7,6 +7,7 @@ pub mod sessions;
 pub mod settings;
 pub mod skills;
 mod tools;
+pub mod workspaces;
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
@@ -22,10 +23,13 @@ pub fn run() {
             std::fs::create_dir_all(&data_dir).ok();
             skills::seed_skills(&data_dir);
             let settings = settings::SettingsStore::new(&data_dir).load();
+            let workspaces =
+                workspaces::seed_from_settings(&data_dir, &settings.workspace_dir);
             let state = AppState {
                 data_dir: data_dir.clone(),
                 settings: RwLock::new(settings),
                 sessions: Mutex::new(sessions::SessionStore::new(&data_dir)),
+                workspaces: RwLock::new(workspaces),
                 stop_flags: Arc::new(Mutex::new(HashMap::new())),
             };
             app.manage(state);
@@ -43,6 +47,10 @@ pub fn run() {
             commands::skills_list,
             commands::models_list,
             commands::ping_provider,
+            commands::workspaces_list,
+            commands::workspaces_add,
+            commands::workspaces_remove,
+            commands::workspaces_set_current,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

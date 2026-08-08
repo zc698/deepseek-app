@@ -46,6 +46,7 @@
 | 会话 | 侧栏管理、JSON 持久化、原始 API 消息保真续聊 |
 | 安全 | API Key 存 OS 钥匙串（macOS Keychain / Windows Credential Manager / Linux Secret Service），文件仅兜底 |
 | 跨平台 | macOS / Windows / Linux，GitHub Actions 三平台矩阵自动构建验证 |
+| 工作区 | 多工作区注册表（可信目录 = Agent 工作目录），侧栏一键切换/增删，工具沙箱跟随当前工作区 |
 | 自定义 | 设置面板：模型、Temperature、工作目录、Bash 许可、系统提示词、技能开关 |
 
 ## 03. 架构

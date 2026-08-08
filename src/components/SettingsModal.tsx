@@ -138,7 +138,14 @@ export default function SettingsModal({ settings, skills, onSave, onClose }: Pro
 
           <div>
             <label className={label}>工作目录（工具读写文件的范围）</label>
-            <input className={input} value={form.workspace_dir} onChange={(e) => set("workspace_dir", e.target.value)} />
+            <input
+              className={input}
+              value={form.workspace_dir}
+              onChange={(e) => set("workspace_dir", e.target.value)}
+            />
+            <p className="mt-1 text-[11px] text-slate-400">
+              已由侧栏「工作区」接管：Agent 实际在<span className="font-medium text-slate-500">当前工作区</span>目录内工作；此字段仅作为无工作区时的回退。
+            </p>
           </div>
 
           <div className="flex items-center gap-2">

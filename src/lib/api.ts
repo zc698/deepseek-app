@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { ChatMessage, SessionMeta, Settings, SkillInfo } from "./types";
+import type { ChatMessage, SessionMeta, Settings, SkillInfo, WorkspaceState } from "./types";
 
 // ---- IPC wrappers (typed invoke calls into the Rust host) ----
 
@@ -51,4 +51,20 @@ export function pingProvider(
   baseUrl: string,
 ): Promise<{ ok: boolean; models: string[]; error?: string }> {
   return invoke("ping_provider", { apiKey, baseUrl });
+}
+
+export function workspacesList(): Promise<WorkspaceState> {
+  return invoke("workspaces_list");
+}
+
+export function workspacesAdd(name: string, path: string): Promise<WorkspaceState> {
+  return invoke("workspaces_add", { name, path });
+}
+
+export function workspacesRemove(id: string): Promise<WorkspaceState> {
+  return invoke("workspaces_remove", { id });
+}
+
+export function workspacesSetCurrent(id: string): Promise<WorkspaceState> {
+  return invoke("workspaces_set_current", { id });
 }

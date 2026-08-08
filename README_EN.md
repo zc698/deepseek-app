@@ -46,6 +46,7 @@ Core workflow: you type a message → the agent evaluates and injects relevant s
 | Sessions | Sidebar management, JSON persistence, faithful continuation via raw API messages |
 | Security | API key in the OS keychain (macOS Keychain / Windows Credential Manager / Linux Secret Service); file is fallback only |
 | Cross-platform | macOS / Windows / Linux, auto-verified by a 3-OS GitHub Actions matrix |
+| Workspaces | Multi-workspace registry (trusted folder = agent cwd), one-click switch/add/remove in the sidebar, tool sandbox follows the active workspace |
 | Customization | Settings panel: model, temperature, workspace, bash toggle, system prompt, skill toggles |
 
 ## 03. Architecture

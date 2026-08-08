@@ -19,6 +19,7 @@ pub struct AppState {
     pub data_dir: PathBuf,
     pub settings: RwLock<Settings>,
     pub sessions: Mutex<SessionStore>,
+    pub workspaces: RwLock<crate::workspaces::WorkspaceState>,
     pub stop_flags: Arc<Mutex<HashMap<String, Arc<AtomicBool>>>>,
 }
 
@@ -157,6 +158,15 @@ pub async fn chat_send(
     // Snapshot owned data for the background task.
     let data_dir = state.data_dir.clone();
     let settings = state.settings.read().unwrap().clone();
+    // The tool sandbox root follows the active workspace (grok-app style:
+    // trusted folder = agent cwd), falling back to the legacy setting.
+    let workspace_path = state
+        .workspaces
+        .read()
+        .unwrap()
+        .current_path()
+        .map(PathBuf::from)
+        .unwrap_or_else(|| settings.workspace_path());
     let stop_flags = state.stop_flags.clone();
 
     let stop = Arc::new(AtomicBool::new(false));
@@ -220,7 +230,7 @@ pub async fn chat_send(
             temperature: settings.temperature,
             system_prompt: settings.system_prompt.clone(),
             allow_bash: settings.allow_bash,
-            workspace_dir: settings.workspace_path(),
+            workspace_dir: workspace_path.clone(),
             max_tool_rounds: settings.max_tool_rounds.max(1),
             enabled_skills: settings.enabled_skills.clone(),
             skill_roots: skill_roots(&data_dir),
@@ -284,4 +294,86 @@ pub async fn ping_provider(api_key: String, base_url: String) -> AppResult<Value
         Ok(models) => Ok(json!({ "ok": true, "models": models })),
         Err(e) => Ok(json!({ "ok": false, "error": e.to_string() })),
     }
+}
+
+// ---- workspaces ----
+
+#[tauri::command]
+pub fn workspaces_list(state: State<'_, AppState>) -> crate::workspaces::WorkspaceState {
+    state.workspaces.read().unwrap().clone()
+}
+
+#[tauri::command]
+pub fn workspaces_add(
+    state: State<'_, AppState>,
+    name: String,
+    path: String,
+) -> AppResult<crate::workspaces::WorkspaceState> {
+    use crate::workspaces::{Workspace, WorkspaceStore};
+    let raw = path.trim().to_string();
+    if raw.is_empty() {
+        return Err(AppError::Config("工作区路径不能为空".into()));
+    }
+    let canon = std::fs::canonicalize(&raw)
+        .map_err(|_| AppError::Config("路径不存在或不是目录".into()))?;
+    if !canon.is_dir() {
+        return Err(AppError::Config("路径不是目录".into()));
+    }
+    let canon_str = canon.to_string_lossy().into_owned();
+    let name = if name.trim().is_empty() {
+        canon
+            .file_name()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "工作区".into())
+    } else {
+        name.trim().to_string()
+    };
+    let data_dir = state.data_dir.clone();
+    let mut ws = state.workspaces.write().unwrap();
+    let w = Workspace {
+        id: uuid::Uuid::new_v4().to_string(),
+        name,
+        path: canon_str,
+    };
+    if ws.current.is_none() {
+        ws.current = Some(w.id.clone());
+    }
+    ws.items.push(w);
+    let store = WorkspaceStore::new(&data_dir);
+    store.save(&ws)?;
+    Ok(ws.clone())
+}
+
+#[tauri::command]
+pub fn workspaces_remove(
+    state: State<'_, AppState>,
+    id: String,
+) -> AppResult<crate::workspaces::WorkspaceState> {
+    use crate::workspaces::WorkspaceStore;
+    let data_dir = state.data_dir.clone();
+    let mut ws = state.workspaces.write().unwrap();
+    ws.items.retain(|w| w.id != id);
+    if ws.current.as_deref() == Some(id.as_str()) {
+        ws.current = ws.items.first().map(|w| w.id.clone());
+    }
+    let store = WorkspaceStore::new(&data_dir);
+    store.save(&ws)?;
+    Ok(ws.clone())
+}
+
+#[tauri::command]
+pub fn workspaces_set_current(
+    state: State<'_, AppState>,
+    id: String,
+) -> AppResult<crate::workspaces::WorkspaceState> {
+    use crate::workspaces::WorkspaceStore;
+    let data_dir = state.data_dir.clone();
+    let mut ws = state.workspaces.write().unwrap();
+    if !ws.items.iter().any(|w| w.id == id) {
+        return Err(AppError::Config("工作区不存在".into()));
+    }
+    ws.current = Some(id);
+    let store = WorkspaceStore::new(&data_dir);
+    store.save(&ws)?;
+    Ok(ws.clone())
 }

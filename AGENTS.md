@@ -19,7 +19,7 @@
 
 ### Agent 与错误处理
 - `run_agent` 是薄包装：任何失败**恰好发一次** `AgentEvent::Error` 并返回 Err，成功路径零 Error（前端依赖它清 busy 状态）。
-- 工具全部沙箱在工作目录内（`resolve_in_workspace` 必须 canonicalize 校验，禁止 `..` 逃逸）；`bash` 默认禁用，需用户显式开启。
+- 工具全部沙箱在**当前工作区**目录内（`workspaces.rs` 注册表管理，首启由旧 `settings.workspace_dir`/`$HOME` 播种；`resolve_in_workspace` 必须 canonicalize 校验，禁止 `..` 逃逸）；`bash` 默认禁用，需用户显式开启。
 - 新增工具 = 在 `tools.rs` 注册 `ToolSpec`（含 JSON Schema）+ `execute` 分发 + 测试。
 
 ### 测试先行

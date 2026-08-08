@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
-import type { ChatEvent, ChatMessage, SessionMeta, Settings, SkillInfo } from "./lib/types";
+import type { ChatEvent, ChatMessage, SessionMeta, Settings, SkillInfo, WorkspaceState } from "./lib/types";
 import * as api from "./lib/api";
 import { applyEvent, shouldAcceptEvent } from "./lib/stream";
 import Sidebar from "./components/Sidebar";
@@ -14,6 +14,7 @@ export default function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [skills, setSkills] = useState<SkillInfo[]>([]);
+  const [workspaces, setWorkspaces] = useState<WorkspaceState>({ current: null, items: [] });
   const [showSettings, setShowSettings] = useState(false);
   const [showSkills, setShowSkills] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -40,9 +41,14 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        const [s, sk] = await Promise.all([api.settingsGet(), api.skillsList()]);
+        const [s, sk, ws] = await Promise.all([
+          api.settingsGet(),
+          api.skillsList(),
+          api.workspacesList(),
+        ]);
         setSettings(s);
         setSkills(sk);
+        setWorkspaces(ws);
         await refreshSessions();
       } catch (e) {
         setError(String(e));
@@ -161,6 +167,41 @@ export default function App() {
     [settings],
   );
 
+  // ---- workspaces ----
+
+  const refreshWorkspaces = useCallback(async () => {
+    try {
+      setWorkspaces(await api.workspacesList());
+    } catch (e) {
+      setError(String(e));
+    }
+  }, []);
+
+  const selectWorkspace = useCallback(async (id: string) => {
+    try {
+      setWorkspaces(await api.workspacesSetCurrent(id));
+    } catch (e) {
+      setError(String(e));
+    }
+  }, []);
+
+  const addWorkspace = useCallback(async (name: string, path: string) => {
+    try {
+      setWorkspaces(await api.workspacesAdd(name, path));
+    } catch (e) {
+      setError(String(e));
+      throw e;
+    }
+  }, []);
+
+  const removeWorkspace = useCallback(async (id: string) => {
+    try {
+      setWorkspaces(await api.workspacesRemove(id));
+    } catch (e) {
+      setError(String(e));
+    }
+  }, []);
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-white text-slate-500">
@@ -180,6 +221,10 @@ export default function App() {
         onOpenSettings={() => setShowSettings(true)}
         onOpenSkills={() => setShowSkills(true)}
         model={settings?.model ?? ""}
+        workspaces={workspaces}
+        onWorkspaceSelect={selectWorkspace}
+        onWorkspaceAdd={addWorkspace}
+        onWorkspaceRemove={removeWorkspace}
       />
       <main className="flex flex-1 flex-col min-w-0">
         <ChatView
@@ -190,6 +235,9 @@ export default function App() {
           error={error}
           model={settings?.model ?? ""}
           onModelChange={changeModel}
+          workspace={
+            workspaces.items.find((w) => w.id === workspaces.current)?.name ?? null
+          }
         />
       </main>
 
