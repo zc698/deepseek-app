@@ -39,7 +39,7 @@ Core workflow: you type a message → the agent evaluates and injects relevant s
 | Area | What you get |
 |---|---|
 | Chat | SSE streaming, collapsible reasoning, Markdown rendering + copyable code blocks |
-| Models | `deepseek-chat` (V3 general) / `deepseek-reasoner` (R1 reasoning, tools auto-disabled) |
+| Models | `deepseek-v4-flash` (fast, great value) / `deepseek-v4-pro` (stronger reasoning); 1M context, thinking mode on by default (`reasoning_effort` controls strength), both support tool calls |
 | Agent | Skill selection → system prompt stack → multi-round tool loop (up to 20), live tool cards |
 | Tools | `read_file` / `write_file` / `edit_file` / `list_dir` / `bash`, all sandboxed to the workspace |
 | Skills | `SKILL.md` system + LLM skill routing (json_object); 3 bundled, easily extensible |
@@ -69,8 +69,8 @@ Core workflow: you type a message → the agent evaluates and injects relevant s
            │ HTTPS (reqwest + SSE)
 ┌──────────▼──────────────┐
 │   DeepSeek API          │  api.deepseek.com/v1/chat/completions
-│   - deepseek-chat (V3)  │  function calling support
-│   - deepseek-reasoner   │  deep reasoning, returns reasoning_content
+│   - deepseek-v4-flash   │  fast & cost-effective, 1M context
+│   - deepseek-v4-pro     │  stronger reasoning; both support thinking + tools
 └─────────────────────────┘
 ```
 

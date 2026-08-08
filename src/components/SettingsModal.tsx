@@ -11,8 +11,8 @@ interface Props {
 }
 
 const MODEL_CATALOG = [
-  { id: "deepseek-chat", name: "DeepSeek Chat（V3，通用对话）" },
-  { id: "deepseek-reasoner", name: "DeepSeek Reasoner（R1，深度推理）" },
+  { id: "deepseek-v4-flash", name: "DeepSeek V4 Flash（快速高性价比，1M 上下文）" },
+  { id: "deepseek-v4-pro", name: "DeepSeek V4 Pro（更强推理，1M 上下文）" },
 ];
 
 export default function SettingsModal({ settings, skills, onSave, onClose }: Props) {

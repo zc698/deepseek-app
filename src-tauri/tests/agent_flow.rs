@@ -64,6 +64,21 @@ async fn chat_handler(State(state): State<Arc<MockState>>, body: String) -> Resp
         .unwrap_or_default();
 
     if has_tool_result {
+        // DeepSeek V4 requirement: any request that carries `tools` must echo
+        // the assistant's reasoning_content back in subsequent rounds, or the
+        // API returns 400. Fail loudly if the agent omitted it.
+        let has_reasoning_echo = messages.iter().any(|m| {
+            m["role"] == "assistant"
+                && m["tool_calls"].is_array()
+                && m.get("reasoning_content").and_then(|v| v.as_str()).map_or(false, |s| !s.is_empty())
+        });
+        if !has_reasoning_echo {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(json!({ "error": { "message": "missing reasoning_content echo" } })),
+            )
+                .into_response();
+        }
         // Round 2: the tool ran; produce the final answer.
         let content = format!("文件内容: {data}");
         return sse(&[
@@ -105,7 +120,7 @@ async fn chat_handler(State(state): State<Arc<MockState>>, body: String) -> Resp
 async fn models_handler() -> Response {
     (
         StatusCode::OK,
-        Json(json!({ "data": [ { "id": "deepseek-chat" }, { "id": "deepseek-reasoner" } ] })),
+        Json(json!({ "data": [ { "id": "deepseek-v4-flash" }, { "id": "deepseek-v4-pro" } ] })),
     )
         .into_response()
 }
@@ -125,7 +140,7 @@ async fn spawn_mock(workspace: PathBuf) -> String {
 
 fn test_cfg(workspace: &std::path::Path, data_dir: &std::path::Path) -> AgentConfig {
     AgentConfig {
-        model: "deepseek-chat".into(),
+        model: "deepseek-v4-flash".into(),
         temperature: 0.0,
         system_prompt: String::new(),
         allow_bash: false,
@@ -264,8 +279,8 @@ async fn list_models_via_mock() {
     let base = spawn_mock(ws.path().to_path_buf()).await;
     let client = DeepSeekClient::new(&base, "test-key");
     let models = client.list_models().await.unwrap();
-    assert!(models.contains(&"deepseek-chat".to_string()));
-    assert!(models.contains(&"deepseek-reasoner".to_string()));
+    assert!(models.contains(&"deepseek-v4-flash".to_string()));
+    assert!(models.contains(&"deepseek-v4-pro".to_string()));
 }
 
 #[tokio::test]

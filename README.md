@@ -39,7 +39,7 @@
 | 领域 | 说明 |
 |---|---|
 | 对话 | SSE 流式输出、思考过程可折叠、Markdown 渲染 + 代码块复制 |
-| 模型 | `deepseek-chat`（V3 通用）/ `deepseek-reasoner`（R1 深度推理，自动禁用工具） |
+| 模型 | `deepseek-v4-flash`（快速高性价比）/ `deepseek-v4-pro`（更强推理）；1M 上下文，思考模式默认开启（`reasoning_effort` 控制强度），两者均支持工具调用 |
 | Agent | 技能选择 → 系统提示栈 → 工具调用多轮循环（最多 20 轮），实时工具卡片展示 |
 | 工具 | `read_file` / `write_file` / `edit_file` / `list_dir` / `bash`，全部沙箱在工作目录内 |
 | 技能 | `SKILL.md` 体系 + LLM 自动选技能（json_object），内置 3 个技能可扩展 |
@@ -69,8 +69,8 @@
            │ HTTPS (reqwest + SSE)
 ┌──────────▼──────────────┐
 │   DeepSeek API          │  api.deepseek.com/v1/chat/completions
-│   - deepseek-chat (V3)  │  支持 function calling
-│   - deepseek-reasoner   │  深度推理，返回 reasoning_content
+│   - deepseek-v4-flash   │  快速高性价比，1M 上下文
+│   - deepseek-v4-pro     │  更强推理；两者均支持思考模式 + 工具调用
 └─────────────────────────┘
 ```
 

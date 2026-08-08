@@ -259,7 +259,7 @@ pub fn msg_assistant(content: &str) -> Value {
     json!({ "role": "assistant", "content": content })
 }
 
-pub fn msg_assistant_with_tools(content: &str, calls: &[CompletedToolCall]) -> Value {
+pub fn msg_assistant_with_tools(content: &str, reasoning: &str, calls: &[CompletedToolCall]) -> Value {
     let calls: Vec<Value> = calls
         .iter()
         .map(|c| {
@@ -270,7 +270,13 @@ pub fn msg_assistant_with_tools(content: &str, calls: &[CompletedToolCall]) -> V
             })
         })
         .collect();
-    json!({ "role": "assistant", "content": content, "tool_calls": calls })
+    let mut msg = json!({ "role": "assistant", "content": content, "tool_calls": calls });
+    // DeepSeek V4: when a request carries `tools`, every subsequent request
+    // MUST echo the assistant's `reasoning_content` back, or the API returns 400.
+    if !reasoning.trim().is_empty() {
+        msg["reasoning_content"] = json!(reasoning);
+    }
+    msg
 }
 
 pub fn msg_tool_result(tool_call_id: &str, content: &str) -> Value {

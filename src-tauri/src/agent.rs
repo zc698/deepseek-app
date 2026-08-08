@@ -170,7 +170,8 @@ async fn run_agent_inner(
     messages.extend(history.into_iter().filter(|m| m["role"].as_str() != Some("system")));
     messages.push(msg_user(user_text));
 
-    let use_tools = !cfg.model.contains("reasoner"); // deepseek-reasoner has no function calling
+    // All current DeepSeek V4 models (deepseek-v4-flash / deepseek-v4-pro)
+    // support function calling, including in thinking mode.
     let tools_specs: Vec<Value> = tools::all_tools(cfg.allow_bash)
         .into_iter()
         .map(|t| {
@@ -203,15 +204,20 @@ async fn run_agent_inner(
         let mut body = json!({
             "model": cfg.model,
             "messages": messages,
-            "temperature": cfg.temperature,
             "stream": true
         });
-        if use_tools && !tools_specs.is_empty() {
+        // DeepSeek V4 thinking mode (on by default at the API level; we make it
+        // explicit and keep the default effort). temperature is accepted but
+        // ignored while thinking is enabled.
+        body["thinking"] = json!({ "type": "enabled" });
+        body["reasoning_effort"] = json!("high");
+        if !tools_specs.is_empty() {
             body["tools"] = json!(tools_specs);
         }
 
         let stream = client.chat_stream(body).await?;
         let mut round_content = String::new();
+        let mut round_reasoning = String::new();
         let mut tool_acc: std::collections::HashMap<usize, (String, String, String)> =
             std::collections::HashMap::new(); // index -> (id, name, args)
         let mut round_error: Option<AppError> = None;
@@ -232,6 +238,7 @@ async fn run_agent_inner(
                         emit(event_tx, AgentEvent::Stream { delta: c, reasoning: false });
                     }
                     if let Some(r) = delta.reasoning {
+                        round_reasoning.push_str(&r);
                         reasoning_all.push_str(&r);
                         emit(event_tx, AgentEvent::Stream { delta: r, reasoning: true });
                     }
@@ -313,7 +320,7 @@ async fn run_agent_inner(
         }
 
         // 3. Tool execution round.
-        messages.push(msg_assistant_with_tools(&round_content, &calls));
+        messages.push(msg_assistant_with_tools(&round_content, &round_reasoning, &calls));
         for call in &calls {
             let args: Value = serde_json::from_str(&call.arguments)
                 .unwrap_or_else(|_| json!({ "raw": call.arguments }));

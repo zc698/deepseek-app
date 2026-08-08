@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 pub const DEFAULT_BASE_URL: &str = "https://api.deepseek.com";
-pub const DEFAULT_MODEL: &str = "deepseek-chat";
+pub const DEFAULT_MODEL: &str = "deepseek-v4-flash";
 
 /// Resolve the app data directory.
 /// Tests override this with the DEEPSEEK_APP_DATA env var.

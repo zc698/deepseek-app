@@ -267,8 +267,8 @@ pub fn skills_list(state: State<'_, AppState>) -> Vec<SkillInfo> {
 #[tauri::command]
 pub fn models_list() -> Vec<Value> {
     vec![
-        json!({ "id": "deepseek-chat", "name": "DeepSeek Chat (V3) - 通用对话" }),
-        json!({ "id": "deepseek-reasoner", "name": "DeepSeek Reasoner (R1) - 深度推理" }),
+        json!({ "id": "deepseek-v4-flash", "name": "DeepSeek V4 Flash - 快速高性价比" }),
+        json!({ "id": "deepseek-v4-pro", "name": "DeepSeek V4 Pro - 更强推理" }),
     ]
 }
 
