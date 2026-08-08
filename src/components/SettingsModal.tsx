@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Loader2, Plug, Save, X } from "lucide-react";
 import type { Settings, SkillInfo } from "../lib/types";
 import { modelsList, pingProvider } from "../lib/api";
+import { MODEL_CATALOG, MODEL_MIGRATION, migrateModel } from "../lib/models";
 
 interface Props {
   settings: Settings;
@@ -9,21 +10,6 @@ interface Props {
   onSave: (s: Settings) => void;
   onClose: () => void;
 }
-
-const MODEL_CATALOG = [
-  { id: "deepseek-v4-flash", name: "DeepSeek V4 Flash（快速高性价比，1M 上下文）" },
-  { id: "deepseek-v4-pro", name: "DeepSeek V4 Pro（更强推理，1M 上下文）" },
-];
-
-// Legacy model ids (deprecated V3 era) -> current V4 successors. Kept so users
-// who saved deepseek-chat / deepseek-reasoner before the upgrade still see the
-// right model without losing any of their other settings.
-const MODEL_MIGRATION: Record<string, string> = {
-  "deepseek-chat": "deepseek-v4-flash",
-  "deepseek-reasoner": "deepseek-v4-pro",
-};
-
-const migrateModel = (id: string): string => MODEL_MIGRATION[id] ?? id;
 
 export default function SettingsModal({ settings, skills, onSave, onClose }: Props) {
   const [form, setForm] = useState<Settings>({ ...settings, model: migrateModel(settings.model) });

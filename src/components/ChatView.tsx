@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AlertCircle, Brain, Send, Square, Wrench } from "lucide-react";
 import type { ChatMessage } from "../lib/types";
+import { MODEL_CATALOG, migrateModel } from "../lib/models";
 import Markdown from "./Markdown";
 
 interface Props {
@@ -8,6 +9,7 @@ interface Props {
   busy: boolean;
   error: string | null;
   model: string;
+  onModelChange: (model: string) => void;
   onSend: (text: string) => void;
   onStop: () => void;
 }
@@ -76,7 +78,7 @@ function AssistantBody({ message }: { message: ChatMessage }) {
   );
 }
 
-export default function ChatView({ messages, busy, error, model, onSend, onStop }: Props) {
+export default function ChatView({ messages, busy, error, model, onModelChange, onSend, onStop }: Props) {
   const [draft, setDraft] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -97,9 +99,25 @@ export default function ChatView({ messages, busy, error, model, onSend, onStop 
     <div className="flex h-full flex-col">
       <header className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
         <h1 className="text-sm font-semibold text-slate-700">对话</h1>
-        <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-500">
-          {model}
-        </span>
+        <label className="flex items-center gap-2">
+          <span className="text-[11px] text-slate-400">模型</span>
+          <select
+            value={migrateModel(model)}
+            disabled={busy}
+            onChange={(e) => onModelChange(e.target.value)}
+            title="切换模型，下一条消息生效"
+            className="cursor-pointer rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs text-slate-600 outline-none transition focus:border-[#4D6BFE] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {MODEL_CATALOG.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
+            ))}
+            {!MODEL_CATALOG.some((m) => m.id === migrateModel(model)) && (
+              <option value={model}>{model}</option>
+            )}
+          </select>
+        </label>
       </header>
 
       <div className="flex-1 overflow-y-auto px-6 py-4">

@@ -146,6 +146,21 @@ export default function App() {
     [],
   );
 
+  // Switch the model directly from the chat view (persists like settings).
+  const changeModel = useCallback(
+    async (model: string) => {
+      if (!settings) return;
+      setError(null);
+      try {
+        const saved = await api.settingsSet({ ...settings, model });
+        setSettings(saved);
+      } catch (e) {
+        setError(String(e));
+      }
+    },
+    [settings],
+  );
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-white text-slate-500">
@@ -174,6 +189,7 @@ export default function App() {
           onStop={stop}
           error={error}
           model={settings?.model ?? ""}
+          onModelChange={changeModel}
         />
       </main>
 
