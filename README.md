@@ -9,7 +9,7 @@
 > **Note**
 >
 > **DeepSeek App 是独立开发的开源项目，并非 DeepSeek 官方产品，与 DeepSeek 官方无任何关联。**
-> 它通过 DeepSeek **官方 API**（`api.deepseek.com`）工作，你需要自行申请并配置 API Key（`platform.deepseek.com`）。
+> 它通过 DeepSeek **官方 API**工作，你需要自行申请并配置 API Key（`platform.deepseek.com`）。
 > 桌面壳与技能体系的架构参考了 [grok-app](https://github.com/RongleCat/grok-app)（Tauri 壳、IPC 事件流）与 [deepcode-cli](https://github.com/lessweb/deepcode-cli)（`SKILL.md` 技能 + Agent 循环），把 Grok 替换为 DeepSeek。
 
 ## 目录
@@ -212,7 +212,7 @@ npm test   # 前端 vitest
 
 ## 11. License
 
-[MIT](./LICENSE) © DeepSeek App Contributors
+[MIT](./LICENSE) © zc698
 
 ---
 
