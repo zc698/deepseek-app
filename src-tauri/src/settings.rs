@@ -159,10 +159,13 @@ mod tests {
         assert_eq!(s.model, DEFAULT_MODEL);
     }
 
+    /// Keychain-dependent tests are serialized (the keychain is a shared
+    /// resource) and clean up after themselves, so they pass with OR without a
+    /// working keychain (macOS CI has one; the sandbox does not).
     #[test]
+    #[serial_test::serial(keychain)]
     fn effective_key_prefers_env_over_file() {
-        // In the test sandbox the keychain is unavailable, so resolution falls
-        // back to settings.json; the env var override must win regardless.
+        crate::secrets::delete("api_key");
         let s = Settings {
             api_key: "file-key".into(),
             ..Settings::default()
@@ -177,7 +180,9 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial(keychain)]
     fn effective_key_falls_back_to_file_without_env() {
+        crate::secrets::delete("api_key");
         let prev = std::env::var("DEEPSEEK_API_KEY");
         std::env::remove_var("DEEPSEEK_API_KEY");
         let s = Settings {
@@ -192,9 +197,9 @@ mod tests {
     }
 
     #[test]
-    fn load_migrates_plaintext_key_when_keychain_unavailable() {
-        // Keychain writes fail in the test sandbox -> the key must stay in the
-        // file so the app keeps working with the legacy fallback.
+    #[serial_test::serial(keychain)]
+    fn load_migrates_plaintext_key_or_keeps_fallback() {
+        crate::secrets::delete("api_key");
         let dir = tempfile::tempdir().unwrap();
         let store = SettingsStore::new(dir.path());
         let mut s = Settings::default();
@@ -202,6 +207,18 @@ mod tests {
         store.save(&s).unwrap();
 
         let loaded = store.load();
-        assert_eq!(loaded.api_key, "sk-legacy", "keychain unavailable -> file fallback kept");
+        // Invariant that holds in BOTH environments:
+        // - keychain available  -> key moved to the keychain, file field blanked
+        // - keychain unavailable -> key stays in settings.json (fallback)
+        if loaded.api_key.is_empty() {
+            assert_eq!(
+                crate::secrets::get("api_key").as_deref(),
+                Some("sk-legacy"),
+                "migrated key must be retrievable from the keychain"
+            );
+        } else {
+            assert_eq!(loaded.api_key, "sk-legacy", "keychain unavailable -> file fallback kept");
+        }
+        crate::secrets::delete("api_key");
     }
 }

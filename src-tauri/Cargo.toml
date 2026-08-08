@@ -34,6 +34,7 @@ bytes = "1"
 [dev-dependencies]
 axum = "0.8"
 tempfile = "3"
+serial_test = "3"
 
 [profile.release]
 codegen-units = 1
