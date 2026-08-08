@@ -4,7 +4,7 @@
 
 一个**桌面端 DeepSeek 客户端**，支持 **macOS / Windows / Linux**。Tauri 桌面壳 + DeepSeek 官方 API 后端 + 技能（Skills）体系。
 
-架构借鉴了 [grok-app](https://github.com/RongleCat/grok-app)（Tauri 壳、事件流、前端/后端分离设计）与 [deepcode-cli](https://github.com/lessweb/deepcode-cli)（`settings.json` 配置 + `SKILL.md` 技能体系 + LLM 自动选技能 + 工具调用 Agent 循环），把 Grok 替换为 **DeepSeek** 官方 API（`https://api.deepseek.com`）。
+架构借鉴了 [grok-app](https://github.com/RongleCat/grok-app)（Tauri 壳、事件流、前端/后端分离设计）与 [deepcode-cli](https://github.com/lessweb/deepcode-cli)（`settings.json` 配置 + `SKILL.md` 技能体系 + LLM 自动选技能 + 工具调用 Agent 循环），把 Grok 替换为 **DeepSeek** 官方 API。
 
 ## 截图
 
