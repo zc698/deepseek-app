@@ -18,6 +18,7 @@ pub use commands::AppState;
 pub fn run() {
     use tauri::Manager;
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let data_dir = settings::data_dir();
             std::fs::create_dir_all(&data_dir).ok();

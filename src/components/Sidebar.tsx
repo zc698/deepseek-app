@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Check, Folder, MessageSquare, Plus, Settings, Sparkles, X } from "lucide-react";
+import { open } from "@tauri-apps/plugin-dialog";
+import { Check, Folder, FolderOpen, MessageSquare, Plus, Settings, Sparkles, X } from "lucide-react";
 import type { SessionMeta, WorkspaceState } from "../lib/types";
 
 interface Props {
@@ -44,6 +45,22 @@ export default function Sidebar({
       setWsPath("");
     } catch {
       // error surfaces through the app-level error banner
+    }
+  };
+
+  // Open the native directory picker; auto-fill the name from the folder name.
+  const pickDirectory = async () => {
+    const selected = await open({
+      directory: true,
+      multiple: false,
+      title: "选择工作区目录",
+    });
+    if (typeof selected === "string") {
+      setWsPath(selected);
+      if (!wsName.trim()) {
+        const leaf = selected.replace(/[\\/]+$/, "").split(/[\\/]/).pop() ?? "";
+        setWsName(leaf);
+      }
     }
   };
 
@@ -95,13 +112,22 @@ export default function Sidebar({
               className="w-full rounded border border-slate-200 px-2 py-1 text-xs outline-none focus:border-[#4D6BFE]"
               onKeyDown={(e) => e.key === "Enter" && void submitAdd()}
             />
-            <input
-              value={wsPath}
-              onChange={(e) => setWsPath(e.target.value)}
-              placeholder="目录路径，如 /Users/you/project"
-              className="w-full rounded border border-slate-200 px-2 py-1 text-xs outline-none focus:border-[#4D6BFE]"
-              onKeyDown={(e) => e.key === "Enter" && void submitAdd()}
-            />
+            <div className="flex gap-1">
+              <input
+                value={wsPath}
+                onChange={(e) => setWsPath(e.target.value)}
+                placeholder="目录路径，或点右侧选择"
+                className="w-full min-w-0 rounded border border-slate-200 px-2 py-1 text-xs outline-none focus:border-[#4D6BFE]"
+                onKeyDown={(e) => e.key === "Enter" && void submitAdd()}
+              />
+              <button
+                onClick={() => void pickDirectory()}
+                className="flex shrink-0 items-center gap-1 rounded border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] text-slate-600 transition hover:bg-slate-100"
+                title="选择本地目录"
+              >
+                <FolderOpen size={12} /> 浏览…
+              </button>
+            </div>
             <div className="flex justify-end gap-1">
               <button
                 onClick={() => setAdding(false)}
