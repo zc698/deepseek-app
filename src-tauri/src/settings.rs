@@ -74,6 +74,18 @@ impl Settings {
         }
         self.api_key.clone()
     }
+
+    /// Resolve the model id, mapping legacy V3-era ids to their V4 successors.
+    /// This is an in-memory migration: the persisted settings.json is left
+    /// untouched (no user config is destroyed); the app simply uses the V4
+    /// model that replaced the stored id.
+    pub fn effective_model(&self) -> String {
+        match self.model.as_str() {
+            "deepseek-chat" => "deepseek-v4-flash".to_string(),
+            "deepseek-reasoner" => "deepseek-v4-pro".to_string(),
+            m => m.to_string(),
+        }
+    }
 }
 
 pub struct SettingsStore {
@@ -194,6 +206,31 @@ mod tests {
             Ok(v) => std::env::set_var("DEEPSEEK_API_KEY", v),
             Err(_) => {}
         }
+    }
+
+    #[test]
+    fn effective_model_maps_legacy_ids_to_v4() {
+        let s = Settings {
+            model: "deepseek-chat".into(),
+            ..Settings::default()
+        };
+        assert_eq!(s.effective_model(), "deepseek-v4-flash");
+        let s = Settings {
+            model: "deepseek-reasoner".into(),
+            ..Settings::default()
+        };
+        assert_eq!(s.effective_model(), "deepseek-v4-pro");
+        // Unknown / already-current ids pass through untouched.
+        let s = Settings {
+            model: "deepseek-v4-flash".into(),
+            ..Settings::default()
+        };
+        assert_eq!(s.effective_model(), "deepseek-v4-flash");
+        let s = Settings {
+            model: "some-future-model".into(),
+            ..Settings::default()
+        };
+        assert_eq!(s.effective_model(), "some-future-model");
     }
 
     #[test]

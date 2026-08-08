@@ -62,10 +62,12 @@ fn skill_roots(data_dir: &std::path::Path) -> Vec<PathBuf> {
 
 #[tauri::command]
 pub fn settings_get(state: State<'_, AppState>) -> Settings {
-    // Resolve the key from keychain (or env) so the settings UI can show it.
+    // Resolve the key from keychain (or env) and map legacy model ids to their
+    // V4 successors so the settings UI shows the current model catalog.
     let settings = state.settings.read().unwrap().clone();
     let mut resolved = settings.clone();
     resolved.api_key = settings.effective_api_key();
+    resolved.model = settings.effective_model();
     resolved
 }
 
@@ -88,6 +90,9 @@ pub fn settings_set(state: State<'_, AppState>, settings: Settings) -> AppResult
     } else if crate::secrets::set("api_key", settings.api_key.trim()) {
         to_save.api_key = String::new();
     }
+    // Persist the resolved (V4) model id so the file upgrades in place without
+    // touching any other user setting.
+    to_save.model = settings.effective_model();
     let store = SettingsStore::new(&state.data_dir);
     store.save(&to_save)?;
     *state.settings.write().unwrap() = settings.clone();
@@ -211,7 +216,7 @@ pub async fn chat_send(
         // Run the agent.
         let client = DeepSeekClient::new(&settings.base_url, &settings.effective_api_key());
         let cfg = AgentConfig {
-            model: settings.model.clone(),
+            model: settings.effective_model(),
             temperature: settings.temperature,
             system_prompt: settings.system_prompt.clone(),
             allow_bash: settings.allow_bash,

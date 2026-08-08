@@ -15,10 +15,22 @@ const MODEL_CATALOG = [
   { id: "deepseek-v4-pro", name: "DeepSeek V4 Pro（更强推理，1M 上下文）" },
 ];
 
+// Legacy model ids (deprecated V3 era) -> current V4 successors. Kept so users
+// who saved deepseek-chat / deepseek-reasoner before the upgrade still see the
+// right model without losing any of their other settings.
+const MODEL_MIGRATION: Record<string, string> = {
+  "deepseek-chat": "deepseek-v4-flash",
+  "deepseek-reasoner": "deepseek-v4-pro",
+};
+
+const migrateModel = (id: string): string => MODEL_MIGRATION[id] ?? id;
+
 export default function SettingsModal({ settings, skills, onSave, onClose }: Props) {
-  const [form, setForm] = useState<Settings>(settings);
+  const [form, setForm] = useState<Settings>({ ...settings, model: migrateModel(settings.model) });
   const [customModel, setCustomModel] = useState(
-    MODEL_CATALOG.some((m) => m.id === settings.model) ? "" : settings.model,
+    MODEL_CATALOG.some((m) => m.id === migrateModel(settings.model))
+      ? ""
+      : migrateModel(settings.model),
   );
   const [pinging, setPinging] = useState(false);
   const [pingResult, setPingResult] = useState<{ ok: boolean; text: string } | null>(null);
@@ -44,7 +56,7 @@ export default function SettingsModal({ settings, skills, onSave, onClose }: Pro
   };
 
   const doSave = async () => {
-    const model = customModel.trim() || form.model;
+    const model = migrateModel(customModel.trim() || form.model);
     await onSave({ ...form, model });
   };
 
@@ -108,12 +120,17 @@ export default function SettingsModal({ settings, skills, onSave, onClose }: Pro
                 ))}
                 <option value="__custom__">自定义…</option>
               </select>
+              {MODEL_MIGRATION[settings.model] && (
+                <p className="mt-1 text-[11px] text-amber-600">
+                  已停用的旧模型「{settings.model}」已自动迁移至「{MODEL_MIGRATION[settings.model]}」，其余设置保持不变。
+                </p>
+              )}
             </div>
             <div>
               <label className={label}>自定义模型 ID</label>
               <input
                 className={input}
-                placeholder="例如 deepseek-v3.1"
+                placeholder="例如 deepseek-v4.1"
                 value={customModel}
                 onChange={(e) => setCustomModel(e.target.value)}
               />
