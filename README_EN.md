@@ -9,7 +9,7 @@ English · [中文](./README.md)
 > **Note**
 >
 > **DeepSeek App is an independent open-source project, NOT an official DeepSeek product, and is not affiliated with DeepSeek in any way.**
-> It works through the DeepSeek **official API** (`api.deepseek.com`); you need to obtain and configure your own API key (`platform.deepseek.com`).
+> It works through the DeepSeek **official API** ; you need to obtain and configure your own API key (`platform.deepseek.com`).
 > The desktop shell and skills architecture are inspired by [grok-app](https://github.com/RongleCat/grok-app) (Tauri shell, IPC event stream) and [deepcode-cli](https://github.com/lessweb/deepcode-cli) (`SKILL.md` skills + agent loop), with Grok swapped for DeepSeek.
 
 ## Contents
@@ -212,7 +212,7 @@ Issues and pull requests are welcome. Before merging, make sure: `cargo test` gr
 
 ## 11. License
 
-[MIT](./LICENSE) © DeepSeek App Contributors
+[MIT](./LICENSE) © zc698
 
 ---
 
