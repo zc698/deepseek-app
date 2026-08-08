@@ -24,7 +24,9 @@ include_dir = "0.7"
 uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 dirs = "6"
-keyring = { version = "3", features = ["apple-native"] }
+# OS keychain across platforms: macOS (Security framework), Windows
+# (Credential Manager), Linux (Secret Service via libsecret/dbus).
+keyring = { version = "3", default-features = false, features = ["apple-native", "windows-native", "sync-secret-service"] }
 anyhow = "1"
 thiserror = "2"
 bytes = "1"

@@ -302,9 +302,7 @@ async fn bash(args: &Value, ctx: &ToolCtx) -> ToolResult {
         Ok(p) => p,
         Err(_) => ctx.workspace_dir.clone(),
     };
-    let output_fut = tokio::process::Command::new("sh")
-        .arg("-lc")
-        .arg(&command)
+    let output_fut = shell_command(&command)
         .current_dir(&cwd)
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
@@ -348,6 +346,22 @@ fn err_result(e: AppError) -> ToolResult {
     ToolResult {
         ok: false,
         output: e.to_string(),
+    }
+}
+
+/// Build the platform shell command: `sh -lc` on Unix, `cmd /C` on Windows.
+fn shell_command(command: &str) -> tokio::process::Command {
+    #[cfg(windows)]
+    {
+        let mut cmd = tokio::process::Command::new("cmd.exe");
+        cmd.arg("/C").arg(command);
+        cmd
+    }
+    #[cfg(not(windows))]
+    {
+        let mut cmd = tokio::process::Command::new("sh");
+        cmd.arg("-lc").arg(command);
+        cmd
     }
 }
 

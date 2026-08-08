@@ -1,6 +1,8 @@
 # DeepSeek App
 
-一个**桌面端 DeepSeek 客户端**。Tauri 桌面壳 + DeepSeek 官方 API 后端 + 技能（Skills）体系。
+[![CI](https://github.com/zc698/deepseek-app/actions/workflows/ci.yml/badge.svg)](https://github.com/zc698/deepseek-app/actions/workflows/ci.yml)
+
+一个**桌面端 DeepSeek 客户端**，支持 **macOS / Windows / Linux**。Tauri 桌面壳 + DeepSeek 官方 API 后端 + 技能（Skills）体系。
 
 架构借鉴了 [grok-app](https://github.com/RongleCat/grok-app)（Tauri 壳、事件流、前端/后端分离设计）与 [deepcode-cli](https://github.com/lessweb/deepcode-cli)（`settings.json` 配置 + `SKILL.md` 技能体系 + LLM 自动选技能 + 工具调用 Agent 循环），把 Grok 替换为 **DeepSeek** 官方 API（`https://api.deepseek.com`）。
 
@@ -92,8 +94,14 @@
 |---|---|
 | Node | >= 20 |
 | Rust | stable (>= 1.77) |
-| macOS | Xcode Command Line Tools |
 | Tauri | 2.x |
+
+Linux 额外需要系统依赖（Debian/Ubuntu）：
+
+```bash
+sudo apt install libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev \
+  patchelf libgtk-3-dev libsecret-1-dev libayatana-appindicator3-dev
+```
 
 ### 安装
 
@@ -108,13 +116,21 @@ cd src-tauri && cargo fetch
 npm run tauri dev
 ```
 
-### 生产构建（打包 .app / .dmg）
+### 生产构建（打包 .app / .dmg / .deb / .exe）
 
 ```bash
 npm run tauri build
 ```
 
-输出位置：`src-tauri/target/release/bundle/macos/DeepSeek App.app`。
+产物按平台输出到 `src-tauri/target/release/bundle/`：
+
+| 平台 | 产物 |
+|---|---|
+| macOS | `DeepSeek App.app`、`.dmg` |
+| Windows | NSIS `.exe` 安装包 |
+| Linux | `.deb`（及 AppImage） |
+
+> 三平台构建/测试由 GitHub Actions CI 自动验证（见 `.github/workflows/ci.yml`）。
 
 ## DeepSeek API Key
 
